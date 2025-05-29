@@ -17,6 +17,15 @@ async function generateTokens(user) {
 	return { accessToken, refreshToken };
 }
 
+async function generateConfirmationToken(user) {
+	const confirmationToken = await user.generateConfirmationToken();
+
+	user.confirmationToken = confirmationToken;
+	await user.save({ validateBeforeSave: false });
+
+	return { confirmationToken };
+}
+
 export const registerUser = serviceHandler(
 	async (
 		fullName,
@@ -26,6 +35,8 @@ export const registerUser = serviceHandler(
 		avatarLocalPath,
 		coverImageLocalPath,
 	) => {
+		// here now we will generae our confirmation token,
+		// and call the email service to send email with our token in its parameter
 		const avatar = await uploadImageOnCloudinary(avatarLocalPath);
 
 		let coverImage;
@@ -41,6 +52,9 @@ export const registerUser = serviceHandler(
 			password,
 		});
 
+		// here we will call the email service
+		const { confirmationToken } = await generateConfirmationToken(user);
+
 		const createdUser = await User.findById(user._id).select(
 			"-password -refreshToken",
 		);
@@ -50,6 +64,16 @@ export const registerUser = serviceHandler(
 		return createdUser;
 	},
 );
+
+export const confirmEmail = serviceHandler(async (userMeta) => {
+	const user = await User.findByIdAndUpdate(
+		userMeta,
+		{ isEmailVerified: true, ConfirmationToken: "" },
+		{ new: true },
+	);
+	const { accessToken, refreshToken } = generateTokens(user);
+	return { accessToken, refreshToken };
+});
 
 export const loginUser = serviceHandler(async (username, password) => {
 	const user = await User.findOne({ username });

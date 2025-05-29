@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
 	changePassword,
+	confirmEmail,
 	deleteUser,
 	getCurrentUser,
 	getUserChannelProfile,
@@ -19,6 +20,8 @@ import { validator } from "../../middlewares/validator.middleware.js";
 import {
 	avatarFileValidator,
 	changePasswordValidator,
+	confirmationTokenValidator,
+	confirmEmailValidator,
 	coverImageFileValidator,
 	getUserChannelProfileValidator,
 	loginValidator,
@@ -171,6 +174,10 @@ router.route("/register").post(
 	validator,
 	registerUser,
 );
+
+router
+	.route("/confirmEmail/:confirmationToken")
+	.get(confirmEmailValidator, validator, confirmationTokenValidator , confirmEmail);
 
 /**
  * @swagger

@@ -102,6 +102,35 @@ export const registerationFilesValidator = (req, _, next) => {
 	}
 };
 
+export const confirmEmailValidator = [
+	param("confirmationToken")
+		.notEmpty()
+		.withMessage("Confirmation token is required")
+		.isString()
+		.withMessage("Confirmation token must be a string")
+		.isJWT()
+		.withMessage("Invalid confirmation token format"),
+];
+
+export const confirmationTokenValidator = async (req, _, next) => {
+	try {
+		const token = req.params.ConfirmationToken;
+		const decodedToken = jwt.verify(
+			token,
+			process.env.CONFIRMATION_TOKEN_SECRET,
+		);
+		const user = await User.findById(decodedToken?._id);
+		if (!user) throw new ApiError(401, "Invalid confirmation token");
+		if (user.isEmailConfirmed)
+			throw new ApiError(400, "Email is already confirmed");
+
+		req.user = user;
+		next();
+	} catch (error) {
+		throw new ApiError(401, "Invalid confirmation token");
+	}
+};
+
 export const loginValidator = [
 	body("username")
 		.notEmpty()

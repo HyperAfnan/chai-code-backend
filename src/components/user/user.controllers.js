@@ -24,6 +24,16 @@ const registerUser = asyncHandler(async (req, res) => {
 		.json(new ApiResponse(201, user, "User registered successfully"));
 });
 
+const confirmEmail = asyncHandler(async (req, res) => {
+	const confirmEmail = await userService.confirmEmail(req.user);
+
+	return res
+		.status(200)
+		.cookie("accessToken", confirmEmail.accessToken, cookieOptions)
+		.cookie("refreshToken", confirmEmail.refreshToken, cookieOptions)
+		.json(new ApiResponse(200, null, "Email confirmed successfully"));
+});
+
 const loginUser = asyncHandler(async (req, res) => {
 	const { username, password } = req.body;
 
@@ -142,6 +152,7 @@ export {
 	deleteUser,
 	refreshAccessToken,
 	changePassword,
+	confirmEmail,
 	getCurrentUser,
 	updateAccountDetails,
 	updateUserAvatar,
