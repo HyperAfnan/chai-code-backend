@@ -12,6 +12,8 @@ import {
 	uploadImageOnCloudinary,
 } from "../../utils/fileHandlers.js";
 import { ObjectId } from "mongodb";
+import emailQueue from "../../jobs/queues/email.queue.js";
+import { templates } from "../../microservices/email/email.templates.js";
 
 async function generateTokens(user) {
 	const accessToken = await user.generateAccessToken();
@@ -21,6 +23,15 @@ async function generateTokens(user) {
 	await user.save({ validateBeforeSave: false });
 
 	return { accessToken, refreshToken };
+}
+
+async function generateConfirmationToken(user) {
+	const confirmationToken = await user.generateConfirmationToken();
+
+	user.confirmationToken = confirmationToken;
+	await user.save({ validateBeforeSave: false });
+
+	return { confirmationToken };
 }
 
 export const registerUser = serviceHandler(
@@ -53,13 +64,38 @@ export const registerUser = serviceHandler(
 		if (!createdUser)
 			throw new ApiError(500, "Something went wrong while creating user");
 
+		const { confirmationToken } = await generateConfirmationToken(user);
+
+		const { subject, html } = templates.registration(
+			user.username,
+			confirmationToken,
+		);
+
+		await emailQueue.add("registrationEmail", {
+			to: user.email,
+			html,
+			subject,
+		});
+
 		return createdUser;
 	},
 );
 
+export const confirmEmail = serviceHandler(async (userMeta) => {
+	const user = await User.findByIdAndUpdate(
+		userMeta,
+		{ isEmailConfirmed: true, confirmationToken: null },
+		{ new: true },
+	);
+	const { accessToken, refreshToken } = await generateTokens(user);
+	return { accessToken, refreshToken };
+});
+
 export const loginUser = serviceHandler(async (email, password) => {
 	const user = await User.findOne({ email });
 	if (!user) throw new ApiError(404, "User not found");
+
+	if (!user.isEmailConfirmed) throw new ApiError(401, "Email not confirmed");
 
 	const isPasswordCorrect = await user.isPasswordCorrect(password);
 	if (!isPasswordCorrect) throw new ApiError(401, "Invalid User Credientials");
@@ -80,15 +116,16 @@ export const logoutUser = serviceHandler(async (userId) => {
 export const deleteUser = serviceHandler(async (userId) => {
 	const user = await User.findByIdAndDelete(userId);
 
-   if (user?.coverImage) await deleteImageOnCloudinary(user.coverImage);
+	if (user?.coverImage) await deleteImageOnCloudinary(user.coverImage);
 	await deleteImageOnCloudinary(user?.avatar);
-   await Comment.deleteMany( { user: userId })
-   await Subscription.deleteMany({ $or: [{ channel: userId }, { subscriber: userId }] });
-   await Like.deleteMany({ user: userId });
-   await Playlist.deleteMany({ owner: userId });
-   await Video.deleteMany({ owner: userId });
-   await Tweet.deleteMany({ user: userId });
-
+	await Comment.deleteMany({ user: userId });
+	await Subscription.deleteMany({
+		$or: [{ channel: userId }, { subscriber: userId }],
+	});
+	await Like.deleteMany({ user: userId });
+	await Playlist.deleteMany({ owner: userId });
+	await Video.deleteMany({ owner: userId });
+	await Tweet.deleteMany({ user: userId });
 });
 
 export const refreshAccessToken = serviceHandler(async (userId) => {

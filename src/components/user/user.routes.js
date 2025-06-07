@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
 	changePassword,
+	confirmEmail,
 	deleteUser,
 	getCurrentUser,
 	getUserChannelProfile,
@@ -19,6 +20,8 @@ import { validator } from "../../middlewares/validator.middleware.js";
 import {
 	avatarFileValidator,
 	changePasswordValidator,
+	confirmationTokenValidator,
+	confirmEmailValidator,
 	coverImageFileValidator,
 	getUserChannelProfileValidator,
 	loginValidator,
@@ -28,7 +31,10 @@ import {
 	updateAccountDetailsValidator,
 	usernameValidator,
 } from "./user.validator.js";
-import { authRateLimiter, defaultRateLimiter } from "../../middlewares/rateLimiter.js";
+import {
+	authRateLimiter,
+	defaultRateLimiter,
+} from "../../middlewares/rateLimiter.js";
 
 const router = Router();
 
@@ -163,7 +169,7 @@ const router = Router();
  *         description: Invalid input or username/email already exists
  */
 router.route("/register").post(
-   authRateLimiter,
+	authRateLimiter,
 	upload.fields([
 		{ name: "avatar", maxCount: 1 },
 		{ name: "coverImage", maxCount: 1 },
@@ -173,6 +179,16 @@ router.route("/register").post(
 	validator,
 	registerUser,
 );
+
+router
+	.route("/confirmEmail/:confirmationToken")
+	.get(
+		authRateLimiter,
+		confirmEmailValidator,
+		validator,
+		confirmationTokenValidator,
+		confirmEmail,
+	);
 
 /**
  * @swagger
@@ -229,7 +245,9 @@ router.route("/register").post(
  *       401:
  *         description: Invalid credentials
  */
-router.route("/login").post(authRateLimiter , loginValidator, validator, loginUser);
+router
+	.route("/login")
+	.post(authRateLimiter, loginValidator, validator, loginUser);
 
 /**
  * @swagger
@@ -246,7 +264,7 @@ router.route("/login").post(authRateLimiter , loginValidator, validator, loginUs
  *       401:
  *         description: Unauthorized or invalid token
  */
-router.route("/logout").post( authRateLimiter ,auth, logoutUser);
+router.route("/logout").post(authRateLimiter, auth, logoutUser);
 
 /**
  * @swagger
@@ -286,7 +304,13 @@ router.route("/logout").post( authRateLimiter ,auth, logoutUser);
  */
 router
 	.route("/refreshToken")
-	.post(authRateLimiter , auth, refreshAccessTokenValidator, validator, refreshAccessToken);
+	.post(
+		authRateLimiter,
+		auth,
+		refreshAccessTokenValidator,
+		validator,
+		refreshAccessToken,
+	);
 
 /**
  * @swagger
@@ -325,7 +349,13 @@ router
  */
 router
 	.route("/updateDetails")
-	.patch( defaultRateLimiter ,auth, updateAccountDetailsValidator, validator, updateAccountDetails);
+	.patch(
+		defaultRateLimiter,
+		auth,
+		updateAccountDetailsValidator,
+		validator,
+		updateAccountDetails,
+	);
 
 /**
  * @swagger
@@ -367,7 +397,13 @@ router
  */
 router
 	.route("/updateAvatar")
-	.patch( defaultRateLimiter, auth, upload.single("avatar"), avatarFileValidator, updateUserAvatar);
+	.patch(
+		defaultRateLimiter,
+		auth,
+		upload.single("avatar"),
+		avatarFileValidator,
+		updateUserAvatar,
+	);
 
 /**
  * @swagger
@@ -410,7 +446,7 @@ router
 router
 	.route("/updateCoverImage")
 	.patch(
-      defaultRateLimiter,
+		defaultRateLimiter,
 		auth,
 		upload.single("coverImage"),
 		coverImageFileValidator,
@@ -449,7 +485,7 @@ router
  *       401:
  *         description: Unauthorized
  */
-router.route("/").get(defaultRateLimiter , auth, getCurrentUser);
+router.route("/").get(defaultRateLimiter, auth, getCurrentUser);
 
 /**
  * @swagger
@@ -488,7 +524,13 @@ router.route("/").get(defaultRateLimiter , auth, getCurrentUser);
  */
 router
 	.route("/changePassword")
-	.patch(defaultRateLimiter, auth, changePasswordValidator, validator, changePassword);
+	.patch(
+		defaultRateLimiter,
+		auth,
+		changePasswordValidator,
+		validator,
+		changePassword,
+	);
 
 /**
  * @swagger
@@ -511,7 +553,7 @@ router
  *       401:
  *         description: Unauthorized
  */
-router.route("/history").get(defaultRateLimiter , auth, getUserWatchHistory);
+router.route("/history").get(defaultRateLimiter, auth, getUserWatchHistory);
 
 /**
  * @swagger
@@ -557,7 +599,7 @@ router.route("/history").get(defaultRateLimiter , auth, getUserWatchHistory);
 router
 	.route("/ch/:username")
 	.get(
-      defaultRateLimiter,
+		defaultRateLimiter,
 		auth,
 		getUserChannelProfileValidator,
 		usernameValidator,
@@ -580,6 +622,6 @@ router
  *       401:
  *         description: Unauthorized
  */
-router.route("/delete").delete( authRateLimiter , auth, deleteUser);
+router.route("/delete").delete(authRateLimiter, auth, deleteUser);
 
 export default router;

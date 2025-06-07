@@ -1,21 +1,20 @@
 import { mongoose, Schema } from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-import { config } from "dotenv";
-config();
+import ENV from "../../config/env.js";
 
 const userSchema = new Schema(
 	{
 		username: {
 			type: String,
 			required: true,
-			unique: true,
+			/* 			unique: true, */
 			lowercase: true,
 			trim: true,
 			index: true,
 		},
 		watchHistory: [{ type: Schema.Types.ObjectId, ref: "video" }],
-		email: { type: String, required: true, unique: true, trim: true },
+		email: { type: String, required: true, /* unique: true,  */ trim: true },
 		fullName: {
 			type: String,
 			required: true,
@@ -23,10 +22,12 @@ const userSchema = new Schema(
 			lowercase: true,
 			index: true,
 		},
-		avatar: { type: String, required: true }, // cloudinary url
-		coverImage: { type: String }, // cloudinary url
+		avatar: { type: String, required: true },
+		coverImage: { type: String },
 		password: { type: String, required: true },
 		refreshToken: { type: String },
+		confirmationToken: { type: String },
+		isEmailConfirmed: { type: Boolean, default: false },
 	},
 	{ timestamps: true },
 );
@@ -51,17 +52,29 @@ userSchema.methods.generateAccessToken = function () {
 			username: this.username,
 			fullname: this.fullname,
 		},
-		process.env.ACCESS_TOKEN_SECRET,
-		{ expiresIn: process.env.ACCESS_TOKEN_EXPIRY },
+		ENV.ACCESS_TOKEN_SECRET,
+		{ expiresIn: ENV.ACCESS_TOKEN_EXPIRY },
 	);
 };
+
+userSchema.methods.generateConfirmationToken = function () {
+	return jwt.sign(
+		{
+			_id: this._id,
+			email: this.email,
+		},
+		ENV.CONFIRMATION_TOKEN_SECRET,
+		{ expiresIn: ENV.CONFIRMATION_TOKEN_EXPIRY },
+	);
+};
+
 userSchema.methods.generateRefreshToken = function () {
 	return jwt.sign(
 		{
 			_id: this._id,
 		},
-		process.env.REFRESH_TOKEN_SECRET,
-		{ expiresIn: process.env.REFRESH_TOKEN_EXPIRY },
+		ENV.REFRESH_TOKEN_SECRET,
+		{ expiresIn: ENV.REFRESH_TOKEN_EXPIRY },
 	);
 };
 

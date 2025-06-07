@@ -1,15 +1,13 @@
-import { config } from "dotenv";
-config();
-
 import debug from "debug";
-import connectDB from "./db/index.js";
+import connectDB from "./config/db.js";
 import { app } from "./app.js";
 import mongoose from "mongoose";
+import ENV from "./config/env.js";
 
 const startupDebug = debug("app:startup");
 const dbDebug = debug("app:db");
 
-const PORT = process.env.PORT || 5000;
+const PORT = ENV.PORT || 5000;
 
 startupDebug("Starting the application...");
 connectDB()

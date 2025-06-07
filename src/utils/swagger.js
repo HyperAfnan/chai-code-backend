@@ -1,8 +1,7 @@
 import swaggerJsDoc from "swagger-jsdoc";
-import { config } from "dotenv";
-config();
+import ENV from "../config/env.js"
 
-const PORT = process.env.PORT || 5000;
+const PORT = ENV.PORT || 5000;
 
 const swaggerOptions = {
 	definition: {
