@@ -10,6 +10,16 @@ import {
 	uploadVideoOnCloudinary,
 } from "../../utils/fileHandlers.js";
 
+export const findUserById = serviceHandler(async (userId) => {
+	const user = await User.findById(userId);
+	return user;
+});
+
+export const findVideoById = serviceHandler(async (videoId) => {
+   const video = await Video.findById(videoId);
+   return video;
+})
+
 export const getAllVideos = serviceHandler(
 	async (page, limit, q, sortBy, sortType, userId) => {
 		if (sortType === "asc") sortType = 1;
@@ -70,7 +80,7 @@ export const publishVideo = serviceHandler(
 	},
 );
 
-export const getVideoById = serviceHandler(
+export const getUserVideoById = serviceHandler(
 	async (videoId, videoMeta, userMeta) => {
 		const video = await Video.findByIdAndUpdate(
 			videoId,

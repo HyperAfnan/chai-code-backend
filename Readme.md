@@ -129,6 +129,7 @@ CLOUDINARY_API_SECRET=your cloudinary api secret
 CLOUDINARY_API_KEY=your cloudinary api key
 
 NODE_ENV=development
+
 ```
 
 > Add any other variables as required by your database or third-party services.

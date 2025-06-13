@@ -38,7 +38,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
 
 const getVideoById = asyncHandler(async (req, res) => {
 	const { videoId } = req.params;
-	const video = await VideoService.getVideoById(videoId, req.video, req.user);
+	const video = await VideoService.getUserVideoById(videoId, req.video, req.user);
 
 	return res
 		.status(200)

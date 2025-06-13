@@ -1,9 +1,6 @@
 import { ExpressValidator, oneOf } from "express-validator";
 import { ApiError } from "../../utils/apiErrors.js";
-import { User } from "./user.models.js";
-import jwt from "jsonwebtoken";
 import path from "node:path";
-import ENV from "../../config/env.js";
 
 const { body, cookie, param } = new ExpressValidator({
 	checkWhitespace: (value) => {
@@ -11,17 +8,6 @@ const { body, cookie, param } = new ExpressValidator({
 			if (value[i] === " ") return false;
 		}
 		return true;
-	},
-	isRefreshToken: async (value) => {
-		try {
-			const decodedToken = jwt.verify(value, ENV.REFRESH_TOKEN_SECRET);
-			const user = await User.findById(decodedToken?._id);
-			if (!user) return false;
-			return value === user?.refreshToken;
-		} catch (err) {
-        console.error("Token verification failed:", err); 
-			return false;
-		}
 	},
 	isfirstLetterLowercase: (value) =>
 		value.charAt(0) === value.charAt(0).toLowerCase(),
@@ -40,12 +26,7 @@ export const registerValidator = [
 		.withMessage("Email is required")
 		.isEmail()
 		.withMessage("Invalid email format")
-		.trim()
-		.custom(async (email) => {
-			const existingUser = await User.findOne({ email });
-			if (existingUser)
-				throw new ApiError("A user already exists with this e-mail address");
-		}),
+		.trim(),
 
 	body("username")
 		.notEmpty()
@@ -58,12 +39,7 @@ export const registerValidator = [
 		.isLength({ min: 3, max: 15 })
 		.withMessage("Username must between 3-15 characters")
 		.checkWhitespace()
-		.withMessage("whitespace is not allowed in username")
-		.custom(async (username) => {
-			const existingUser = await User.findOne({ username });
-			if (existingUser)
-				throw new ApiError("A user already exists with this username");
-		}),
+		.withMessage("whitespace is not allowed in username"),
 
 	body("password")
 		.notEmpty()
@@ -114,24 +90,6 @@ export const confirmEmailValidator = [
 		.withMessage("Invalid confirmation token format"),
 ];
 
-export const confirmationTokenValidator = async (req, _, next) => {
-	try {
-		const token = req?.params?.confirmationToken;
-		const decodedToken = jwt.verify(token, ENV.CONFIRMATION_TOKEN_SECRET);
-		const user = await User.findById(decodedToken?._id);
-
-		if (user.isEmailConfirmed)
-			throw new ApiError(400, "Email is already confirmed");
-
-		if (!user) throw new ApiError(401, "Invalid confirmation token");
-
-		req.user = user;
-		next();
-	} catch (error) {
-		throw new ApiError(401, error);
-	}
-};
-
 export const loginValidator = [
 	body("email")
 		.notEmpty()
@@ -155,13 +113,11 @@ export const refreshAccessTokenValidator = [
 			body("accessToken")
 				.optional()
 				.isJWT()
-				.withMessage("Invalid token format")
-				.isRefreshToken(),
+				.withMessage("Invalid token format"),
 			cookie("accessToken")
 				.optional()
 				.isJWT()
-				.withMessage("Invalid token format")
-				.isRefreshToken(),
+				.withMessage("Invalid token format"),
 		],
 		{ message: "Valid access token is required" },
 	),
@@ -217,13 +173,7 @@ export const updateAccountDetailsValidator = [
 				.isfirstLetterLowercase()
 				.isLength({ min: 3, max: 15 })
 				.withMessage("Username must between 3-15 characters")
-				.checkWhitespace()
-				.custom(async (username) => {
-					const existingUser = await User.findOne({ username });
-					if (existingUser)
-						throw new ApiError("A user already exists with this username");
-					return true;
-				}),
+				.checkWhitespace(),
 		],
 		{ message: "Atleast one field is required to update" },
 	),
@@ -260,12 +210,3 @@ export const getUserChannelProfileValidator = [
 		.withMessage("first letter of username should be lowercase")
 		.trim(),
 ];
-
-export const usernameValidator = async (req, _, next) => {
-	const { username } = req.params;
-	let newUser = User.find({ username });
-	if (!newUser) newUser = req.user;
-
-	req.newUser = newUser;
-	next();
-};

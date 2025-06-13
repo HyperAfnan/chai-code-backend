@@ -11,9 +11,7 @@ import {
 	createTweetValidator,
 	deleteTweetValidator,
 	getUserTweetsValidator,
-	getUserTweetsValidator2,
 	updateTweetValidator,
-	validateOwner,
 } from "./tweet.validator.js";
 import { validator } from "../../middlewares/validator.middleware.js";
 import { defaultRateLimiter } from "../../middlewares/rateLimiter.js";
@@ -188,8 +186,8 @@ router
  */
 router
 	.route("/:tweetId")
-	.patch(validateOwner, updateTweetValidator, validator, updateTweet)
-	.delete(validateOwner, deleteTweetValidator, validator, deleteTweet);
+	.patch(updateTweetValidator, validator, updateTweet)
+	.delete(deleteTweetValidator, validator, deleteTweet);
 
 /**
  * @swagger
@@ -217,11 +215,6 @@ router
  */
 router
 	.route("/user/:userId")
-	.get(
-		getUserTweetsValidator,
-		validator,
-		getUserTweetsValidator2,
-		getUserTweets,
-	);
+	.get(getUserTweetsValidator, validator, getUserTweets);
 
 export default router;

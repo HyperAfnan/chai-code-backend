@@ -1,5 +1,16 @@
 import { serviceHandler } from "../../utils/handlers.js";
+import { User } from "../user/user.models.js";
 import { Subscription } from "./subscription.models.js";
+
+export const findChannelById = serviceHandler(async (channelId) => {
+   const channel = await User.findById(channelId);
+   return channel;
+})
+
+export const selfSubscriptionCheck = serviceHandler(async (userId, channelId) => {
+	if (channelId === userId.toString()) return true;
+   return false;
+})
 
 export const toggleSubscription = serviceHandler(
 	async (channelId, subscriberId) => {

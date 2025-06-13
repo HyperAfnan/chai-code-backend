@@ -6,8 +6,6 @@ import {
 } from "./subscription.controller.js";
 import { verifyAccessToken } from "../../middlewares/auth.middleware.js";
 import {
-	channelValidator,
-	checkSelfSubscription,
 	getSubscribedChannelsValidator,
 	getUserChannelSubscribersValidator,
 	toggleSubscriptionValidator,
@@ -104,13 +102,11 @@ router.use(verifyAccessToken); // Apply verifyJWT middleware to all routes in th
 router
 	.route("/c/:channelId")
 	.get(
-		channelValidator,
 		getUserChannelSubscribersValidator,
 		validator,
 		getUserChannelSubscribers,
 	)
 	.post(
-		checkSelfSubscription,
 		toggleSubscriptionValidator,
 		validator,
 		toggleSubscription,
@@ -143,7 +139,6 @@ router
 router
 	.route("/u/:subscriberId")
 	.get(
-		channelValidator,
 		getSubscribedChannelsValidator,
 		validator,
 		getSubscribedChannels,

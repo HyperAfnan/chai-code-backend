@@ -17,6 +17,8 @@ import userQueue from "../../jobs/queues/user/user.normal.js";
 import { templates } from "../../microservices/email/email.templates.js";
 import jwt from "jsonwebtoken";
 import ENV from "../../config/env.js";
+import debug from "debug";
+const log = debug("app:user:service:log");
 
 async function generateTokens(user) {
 	const accessToken = await user.generateAccessToken();
@@ -46,6 +48,51 @@ async function generateForgotPasswordToken(user) {
 	return { forgotPasswordToken };
 }
 
+export const findUserByEmail = serviceHandler(async (email) => {
+	const user = await User.findOne({ email });
+	return user;
+});
+
+export const findUserByUsername = serviceHandler(async (username) => {
+	const user = await User.findOne({ username });
+	return user;
+});
+
+const findUserByToken = serviceHandler(async (token, tokenType) => {
+	let decodedToken;
+	if (tokenType === "cft")
+		decodedToken = jwt.verify(token, ENV.CONFIRMATION_TOKEN_SECRET);
+	else if (tokenType === "rft")
+		decodedToken = jwt.verify(token, ENV.REFRESH_TOKEN_SECRET);
+
+	const user = await User.findById(decodedToken?._id);
+
+	return user;
+});
+
+export const isRefreshTokenValid = serviceHandler(async (token) => {
+	const user = await findUserByToken(token, "rft");
+	if (!user) return { status: false, message: "Invalid Refresh Token" };
+
+	return { status: true, message: "Refresh Token is valid ", userMeta: user };
+});
+
+export const isConfirmationTokenValid = serviceHandler(
+	async (confirmationToken) => {
+		const user = await findUserByToken(confirmationToken, "cft");
+
+		if (user.isEmailConfirmed)
+			return { status: false, message: "Email is already confirmed" };
+		if (!user) return { status: false, message: "Invalid Confirmation Token" };
+
+		return {
+			status: true,
+			message: "Confirmation Token is valid",
+			userMeta: user,
+		};
+	},
+);
+
 export const registerUser = serviceHandler(
 	async (
 		fullName,
@@ -73,8 +120,11 @@ export const registerUser = serviceHandler(
 		const createdUser = await User.findById(user._id).select(
 			"-password -refreshToken",
 		);
+
 		if (!createdUser)
 			throw new ApiError(500, "Something went wrong while creating user");
+
+		log("User created successfully", createdUser);
 
 		const { confirmationToken } = await generateConfirmationToken(user);
 
@@ -106,19 +156,20 @@ export const confirmEmail = serviceHandler(async (userMeta) => {
 		{ new: true },
 	);
 	const { accessToken, refreshToken } = await generateTokens(user);
+
+	log("Account verified for user: ", userMeta.username);
 	return { accessToken, refreshToken };
 });
 
 export const forgotPassword = serviceHandler(async (email) => {
-	const user = await User.findOne({ email });
-	if (!user) {
-		throw new ApiError(404, "User Not Found");
-	}
+	const user = await findUserByEmail(email);
+	if (!user) throw new ApiError(404, "User Not Found");
 
 	const { forgotPasswordToken } = await generateForgotPasswordToken(user);
 
 	const { subject, html } = templates.resetPassword(forgotPasswordToken);
 
+	log("Forgot password requestis made for email: ", email);
 	await emailQueue.add(
 		"resetPassword",
 		{ to: user.email, html, subject },
@@ -127,7 +178,7 @@ export const forgotPassword = serviceHandler(async (email) => {
 });
 
 export const loginUser = serviceHandler(async (email, password) => {
-	const user = await User.findOne({ email });
+	const user = await findUserByEmail(email);
 	if (!user) throw new ApiError(404, "User not found");
 
 	if (!user.isEmailConfirmed) throw new ApiError(401, "Email not confirmed");
@@ -141,10 +192,13 @@ export const loginUser = serviceHandler(async (email, password) => {
 		"-password -refreshToken",
 	);
 
+	log(loggedInUser.username, " logged into their account");
+
 	return { user: loggedInUser, accessToken, refreshToken };
 });
 
 export const logoutUser = serviceHandler(async (userId) => {
+	log(userId, " logged out from this account");
 	await User.findByIdAndUpdate(userId, { $unset: { refreshToken: 1 } });
 });
 
@@ -161,11 +215,14 @@ export const deleteUser = serviceHandler(async (userId) => {
 	await Playlist.deleteMany({ owner: userId });
 	await Video.deleteMany({ owner: userId });
 	await Tweet.deleteMany({ user: userId });
+
+	log(userId, " deleted their account");
 });
 
 export const refreshAccessToken = serviceHandler(async (userId) => {
 	const user = await User.findById(userId);
 	const { refreshToken, accessToken } = await generateTokens(user);
+	log("Refreshed Access token for user", user.username);
 	return { refreshToken, accessToken };
 });
 
@@ -174,13 +231,15 @@ export const resetPassword = serviceHandler(async (token, newPassword) => {
 
 	const user = await User.findById(decodedToken?._id);
 
-	if (!user) {
-		throw new ApiError(404, "User not found");
-	}
+	if (!user) throw new ApiError(404, "User not found");
 
 	user.password = newPassword;
 	user.forgotPasswordToken = null;
 	await user.save({ validateBeforeSave: false });
+
+	log(
+		`Reset password for user: ${user.username} from ${user.password} to ${newPassword} `,
+	);
 });
 
 export const changePassword = serviceHandler(
@@ -191,6 +250,10 @@ export const changePassword = serviceHandler(
 
 		user.password = newPassword;
 		await user.save({ validateBeforeSave: false });
+
+		log(
+			`Changed Password for user: ${user.username} from {${oldPassword}} to {${newPassword}}`,
+		);
 	},
 );
 
@@ -202,6 +265,9 @@ export const updateAccountDetails = serviceHandler(
 			{ new: true },
 		).select("-password -refreshToken");
 
+		log(
+			`Updated account details for user: ${user.username} to ${fullName}, ${username} `,
+		);
 		return user;
 	},
 );
@@ -220,6 +286,9 @@ export const updateUserAvatar = serviceHandler(
 			{ new: true },
 		).select("-password -refreshToken");
 
+		log(
+			`Updated avatar for user: ${user.username} from ${user.avatar} to ${updatedUser.avatar}`,
+		);
 		return updatedUser;
 	},
 );
@@ -236,6 +305,9 @@ export const updateCoverAvatar = serviceHandler(
 			{ new: true },
 		).select("-password -refreshToken");
 
+		log(
+			`Updated cover image for user: ${user.username} from ${user.coverImage} to ${updatedUser.coverImage} `,
+		);
 		return updatedUser;
 	},
 );
@@ -289,6 +361,8 @@ export const getUserChannelProfile = serviceHandler(async (userMeta) => {
 			},
 		},
 	]);
+
+	log(`GET: user channel profile for user: ${userMeta.username}`);
 	return user[0];
 });
 
@@ -323,5 +397,6 @@ export const getUserwatchHistory = serviceHandler(async (userId) => {
 			},
 		},
 	]);
+	log(`GET: user watch history for user: ${userId}`);
 	return user[0].watchHistory;
 });

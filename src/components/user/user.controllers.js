@@ -1,3 +1,4 @@
+import { ApiError } from "../../utils/apiErrors.js";
 import { ApiResponse } from "../../utils/apiResponse.js";
 import { asyncHandler } from "../../utils/handlers.js";
 import * as userService from "./user.services.js";
@@ -9,6 +10,14 @@ const registerUser = asyncHandler(async (req, res) => {
 
 	const avatarLocalPath = req.files?.avatar[0].path;
 	const coverImageLocalPath = req.files?.coverImage?.[0].path || null;
+
+	const isEmailExists = await userService.findUserByEmail(email);
+	if (isEmailExists)
+		throw new ApiError(400, "A user already exists with this e-mail address");
+
+	const isUsernameExists = await userService.findUserByUsername(username);
+	if (isUsernameExists)
+		throw new ApiError(400, "A user already exists with this username");
 
 	const user = await userService.registerUser(
 		fullName,
@@ -25,7 +34,13 @@ const registerUser = asyncHandler(async (req, res) => {
 });
 
 const confirmEmail = asyncHandler(async (req, res) => {
-	const confirmEmail = await userService.confirmEmail(req.user);
+	const { confirmationToken } = req.params;
+
+	const isTokenValid =
+		await userService.isConfirmationTokenValid(confirmationToken);
+	if (!isTokenValid.status) throw new ApiError(400, isTokenValid.message);
+
+	const confirmEmail = await userService.confirmEmail(isTokenValid.userMeta);
 
 	return res
 		.status(200)
@@ -65,8 +80,16 @@ const deleteUser = asyncHandler(async (req, res) => {
 });
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
+	const { refreshToken: bodyrefreshToken } = req.body;
+	const { refreshToken: cookierefreshToken } = req.cookies;
+
+	const token = bodyrefreshToken || cookierefreshToken;
+
+	const isTokenValid = await userService.isRefreshTokenValid(token);
+	if (!isTokenValid.status) throw new ApiError(400, isTokenValid.message);
+
 	const { refreshToken, accessToken } = await userService.refreshAccessToken(
-		req.user._id,
+		isTokenValid.userMeta,
 	);
 
 	return res
@@ -103,6 +126,12 @@ const resetPassword = asyncHandler(async (req, res) => {
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
 	const { fullName, username } = req.body;
+
+	const isUserExistsWithUsername = await userService.findUserByEmail(username);
+	if (isUserExistsWithUsername) {
+		throw new ApiError(400, "User already exists with this username");
+	}
+
 	const user = await userService.updateAccountDetails(
 		req.user._id,
 		fullName,
@@ -145,7 +174,12 @@ const getCurrentUser = asyncHandler(async (req, res) =>
 );
 
 const getUserChannelProfile = asyncHandler(async (req, res) => {
-	const channel = await userService.getUserChannelProfile(req.newUser);
+	const { username } = req.params;
+
+	const isUsernameExists = await userService.findUserByUsername(username);
+	const userMeta = isUsernameExists || req.user;
+
+	const channel = await userService.getUserChannelProfile(userMeta);
 	return res
 		.status(200)
 		.json(new ApiResponse(200, channel, "Channel fetched successfully"));

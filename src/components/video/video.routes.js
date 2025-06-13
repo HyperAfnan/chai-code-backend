@@ -324,6 +324,35 @@ router
 		togglePublishStatus,
 	);
 
+/**
+ * @swagger
+ * /videos/download/{videoId}:
+ *   get:
+ *     summary: Download a video file
+ *     tags: [Videos]
+ *     description: Download the video file associated with the specified video ID.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: videoId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID of the video to download
+ *     responses:
+ *       200:
+ *         description: Video file downloaded successfully
+ *         content:
+ *           application/octet-stream:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       404:
+ *         description: Video not found
+ *       401:
+ *         description: Unauthorized
+ */
 router
 	.route("/download/:videoId")
 	.get(videoIdValidator, validator, downloadVideo);

@@ -5,6 +5,22 @@ import { Tweet } from "./tweet.models.js";
 import { uploadImageOnCloudinary } from "../../utils/fileHandlers.js";
 import mongoose from "mongoose";
 
+export const isTweetOwner = serviceHandler(async (tweetId, userId) => {
+	const tweet = await Tweet.findById(tweetId);
+	if (tweet.owner.toString() !== userId.toString()) return false;
+	return true;
+});
+
+export const findUserById = serviceHandler(async (userId) => {
+	const user = await User.findById(userId);
+	return user;
+});
+
+export const findTweetById = serviceHandler(async (tweetId) => {
+	const tweet = await Tweet.findById(tweetId);
+	return tweet;
+});
+
 export const createTweet = serviceHandler(
 	async (content, title, ownerId, contentImageLocalPath) => {
 		let contentImage;
@@ -25,8 +41,6 @@ export const createTweet = serviceHandler(
 			title,
 			owner: ownerId,
 		});
-		if (!tweet)
-			throw new ApiError(400, "Something went wrong while creating tweet");
 
 		return tweet;
 	},
@@ -38,10 +52,7 @@ export const updateTweet = serviceHandler(async (content, title, tweetId) => {
 		{ content, title },
 		{ new: true },
 	);
-
-	if (!tweet) {
-		throw new ApiError(400, "Something went wrong while editing tweet");
-	}
+   return tweet;
 });
 
 export const deleteTweet = serviceHandler(async (tweetId) => {
@@ -54,8 +65,8 @@ export const getUserTweets = serviceHandler(async (userId) => {
 		{
 			$lookup: {
 				from: "tweets",
-				localField: "tweets",
-				foreignField: "tweets",
+				localField: "_id",
+				foreignField: "owner",
 				as: "tweets",
 			},
 		},
