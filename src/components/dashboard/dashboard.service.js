@@ -5,6 +5,7 @@ import { logger } from "../../utils/logger/index.js";
 const dashboardLogger = logger.child({ module: "dashboard.service" });
 
 // BUG: showing total likes to 1, while video likes array is empty
+// NOTE: use $arrayElemAt instead of $unwind to avoid the issue
 export const getChannelStats = serviceHandler(async (userMeta) => {
 	dashboardLogger.info("Fetching channel stats (aggregate)", {
 		userId: userMeta._id,

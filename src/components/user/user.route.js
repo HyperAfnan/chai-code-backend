@@ -78,11 +78,6 @@ const router = Router();
  *         coverImage:
  *           type: string
  *           description: URL to the user's cover image
- *         watchHistory:
- *           type: array
- *           items:
- *             type: string
- *           description: Array of video IDs watched by the user
  *         password:
  *           type: string
  *           format: password

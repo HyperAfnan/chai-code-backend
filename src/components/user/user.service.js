@@ -5,6 +5,7 @@ import { Like } from "../like/like.model.js";
 import { Playlist } from "../playlist/playlist.model.js";
 import { Video } from "../video/video.model.js";
 import { Tweet } from "../tweet/tweet.model.js";
+import { WatchHistory } from "../watchHistory/watchHistory.model.js";
 import { serviceHandler } from "../../utils/handlers.js";
 import { ApiError } from "../../utils/apiErrors.js";
 import {
@@ -413,21 +414,21 @@ export const getUserChannelProfile = serviceHandler(async (userMeta) => {
 });
 
 export const getUserwatchHistory = serviceHandler(async (userId) => {
-	const user = await User.aggregate([
+	const watchHistory = await WatchHistory.aggregate([
 		{ $match: { _id: new ObjectId(String(userId)) } },
 		{
 			$lookup: {
 				from: "videos",
-				localField: "watchHistory",
+				localField: "video",
 				foreignField: "_id",
-				as: "watchHistory",
+				as: "videoDetails",
 				pipeline: [
 					{
 						$lookup: {
 							from: "users",
 							localField: "owner",
 							foreignField: "_id",
-							as: "owner",
+							as: "ownerDetails",
 							pipeline: [
 								{
 									$project: {
@@ -439,10 +440,27 @@ export const getUserwatchHistory = serviceHandler(async (userId) => {
 							],
 						},
 					},
+					{
+						$project: {
+							title: 1,
+							thumbnail: 1,
+							duration: 1,
+							ownerDetails: { $arrayElemAt: ["$ownerDetails", 0] },
+						},
+					},
 				],
+			},
+		},
+		{
+			$project: {
+				_id: 0,
+				video: { $arrayElemAt: ["$videoDetails", 0] },
+				isWatched: 1,
+				watchDates: 1,
+				user: 1,
 			},
 		},
 	]);
 	userServiceLogger.info("Fetched user watch history", { userId });
-	return user[0].watchHistory;
+	return watchHistory;
 });

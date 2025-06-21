@@ -35,7 +35,7 @@ const ENV = {
 	BREVO_PASSWORD: process.env.BREVO_PASSWORD,
 	BREVO_EMAIL_FROM: process.env.EMAIL_USER,
 
-   LOG_LEVEL: process.env.LOG_LEVEL || "info",
+	LOG_LEVEL: process.env.LOG_LEVEL || "info",
 };
 
 const requiredKeys = [

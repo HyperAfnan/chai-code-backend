@@ -1,3 +1,4 @@
+import { WatchHistory } from "../watchHistory/watchHistory.model.js";
 import mongoose from "mongoose";
 import { ApiError } from "../../utils/apiErrors.js";
 import { serviceHandler } from "../../utils/handlers.js";
@@ -134,10 +135,15 @@ export const getUserVideoById = serviceHandler(
 			{ new: true },
 		);
 
-		await User.updateOne(
-			{ _id: userId },
-			{ $push: { watchHistory: new mongoose.Types.ObjectId(String(videoId)) } },
-		);
+      const watchHistory = await WatchHistory.create({
+         user: userId,
+         video: videoId,
+         isWatched: false, // will set to true when user watches full video, (will be handled by the video player )
+         watchDates: [{ date: new Date(), duration: 0 }],
+      })
+
+      if (!watchHistory)
+         await WatchHistory.findOneAndUpdate( { user: userId, video: videoId }, { $push: { watchDates: { date: new Date(), duration: 0 } } } );
 
 		videoServiceLogger.info("Fetched and updated user video by ID", {
 			videoId,

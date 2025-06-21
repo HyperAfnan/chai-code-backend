@@ -13,7 +13,6 @@ const userSchema = new Schema(
 			trim: true,
 			index: true,
 		},
-		watchHistory: [{ type: Schema.Types.ObjectId, ref: "video" }],
 		email: { type: String, required: true, unique: true, trim: true },
 		fullName: {
 			type: String,
